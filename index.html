@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f7d4f"><link rel="manifest" href="manifest.json">
+<title>Familien-Bergtouren</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:#f3f6f2;--card:#fff;--tx:#1b2a21;--mu:#66756b;--ac:#2f7d4f;--ln:#dde4de;--on:#fff;--wi:#d9822b}
+@media (prefers-color-scheme:dark){:root{--bg:#121813;--card:#1c261f;--tx:#e8efe9;--mu:#93a398;--ac:#5fc088;--ln:#2c392f;--on:#0e1a12;--wi:#f0a050}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif;padding-bottom:100px}
+header{padding:14px 16px 4px;font-size:22px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+nav{display:flex;gap:6px;padding:8px 16px}
+nav button{flex:1;padding:9px 2px;border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:10px;font:inherit;font-size:14px}
+nav button.on{background:var(--ac);color:var(--on);border-color:var(--ac)}
+main{padding:0 16px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px;background:var(--card);color:var(--tx);font:inherit}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin:10px 0;display:flex;gap:12px;align-items:center;cursor:pointer}
+.ph{width:56px;height:56px;border-radius:10px;background:var(--ln);display:grid;place-items:center;font-size:26px;flex:none}
+.mu{color:var(--mu);font-size:14px}
+.badge{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--ac);color:var(--on);font-size:12px;font-weight:600}
+.fab{position:fixed;z-index:4;right:18px;bottom:18px;width:60px;height:60px;border-radius:50%;border:0;background:var(--ac);color:var(--on);font-size:34px;box-shadow:0 3px 10px #0004}
+.ov{position:fixed;inset:0;z-index:2000;background:var(--bg);overflow:auto;padding:14px 16px 40px}
+.ov label{display:block;margin:10px 0 4px;font-size:14px;color:var(--mu)}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.btn{padding:12px 16px;border:0;border-radius:10px;background:var(--ac);color:var(--on);font:inherit;font-weight:600}
+.btn.g{background:var(--card);color:var(--tx);border:1px solid var(--ln)}.btn.d{background:#c0392b;color:#fff}.btn.s{padding:8px 12px;font-size:14px}
+.th{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.th img{width:84px;height:84px;object-fit:cover;border-radius:10px}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.kpi div{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px}.kpi b{display:block;font-size:24px;color:var(--ac)}
+.bar{display:flex;align-items:center;gap:8px;margin:6px 0}.bar span{width:90px;font-size:14px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar i{display:block;height:20px;background:var(--ac);border-radius:6px;min-width:4px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.chips button{flex:none;padding:6px 14px;border-radius:99px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font:inherit}.chips .on{background:var(--ac);color:var(--on)}
+.mon{display:flex;align-items:flex-end;gap:4px;height:120px;margin-top:8px}.mon div{flex:1;text-align:center;font-size:11px;color:var(--mu)}.mon i{display:block;background:var(--ac);border-radius:4px 4px 0 0;margin-bottom:2px}
+.map{height:340px;border-radius:14px;border:1px solid var(--ln);position:relative;z-index:0}
+.err{color:#c0392b}h3{margin:18px 0 6px}
+</style></head><body>
+<header><span>⛰️ Familien-Bergtouren</span><button class="btn g s" id="out" hidden>Abmelden</button></header>
+<nav id="nav" hidden><button data-t="1">Touren</button><button data-t="2">Karte</button><button data-t="3">Wunsch</button><button data-t="4">Statistik</button></nav>
+<main id="main"><p class="mu">Lade…</p></main>
+<button class="fab" id="add" hidden aria-label="Neu">+</button>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot,query,where,getDocs} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+/* ===== HIER DEINE FIREBASE-DATEN EINTRAGEN (siehe SETUP.md) ===== */
+const cfg={apiKey:"AIzaSyANxu80q66B95RIS3EZLcXhzr0zVoXWMvk",authDomain:"berggams.firebaseapp.com",projectId:"berggams",appId:"1:938302229700:web:9b99976a651ad11245cd91"};
+const app=initializeApp(cfg),auth=getAuth(app),db=getFirestore(app);
+const SCH=["T1 – Wandern","T2 – Bergwandern","T3 – anspruchsvoll","T4 – Alpinwandern","T5 – anspruchsvoll alpin","T6 – schwer alpin","Klettersteig","Skitour"];
+const MON=["J","F","M","A","M","J","J","A","S","O","N","D"],OSM="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+let me=null,items=[],tab=1,who="",yr=null,gm=null,unsub=null;
+const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>new Date().toISOString().slice(0,10),fmt=d=>d?new Date(d).toLocaleDateString("de-AT"):"";
+const vis=()=>items.filter(t=>!who||t.uid==who),done=()=>vis().filter(t=>!t.wish);
+const num=(a,f)=>a.reduce((s,t)=>s+(+t[f]||0),0);
+onAuthStateChanged(auth,u=>{
+ me=u;if(unsub){unsub();unsub=null}
+ ["#nav","#add","#out"].forEach(s=>$(s).hidden=!u);
+ if(!u){$("#main").innerHTML=`<p>Melde dich mit deinem Google-Konto an, um die Touren der Familie zu sehen.</p><button class="btn" id="in">Mit Google anmelden</button><p class="err" id="e"></p>`;$("#in").onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>$("#e").textContent=e.message);return}
+ unsub=onSnapshot(collection(db,"tours"),s=>{items=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.datum||"").localeCompare(a.datum||""));if(!$(".ov"))render()},e=>$("#main").innerHTML=`<p class="err">Kein Zugriff: ${esc(e.message)}<br>Ist deine E-Mail in den Regeln eingetragen?</p>`);
+});
+$("#out").onclick=()=>signOut(auth);
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{tab=+b.dataset.t;render()});
+$("#add").onclick=()=>form(null,tab==3);
+function people(){const m={};items.forEach(t=>m[t.uid]=t.user||"?");return m}
+function filt(){const p=people(),k=Object.keys(p);return k.length>1?`<div class="chips"><button data-w="" class="${who?"":"on"}">Alle</button>${k.map(u=>`<button data-w="${u}" class="${who==u?"on":""}">${esc(p[u])}</button>`).join("")}</div>`:""}
+function bindF(){document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{who=b.dataset.w;render()})}
+function card(t,x){return `<div class="card" data-id="${t.id}"><div class="ph">⛰️</div><div style="flex:1;min-width:0"><b>${esc(t.name)}</b><div class="mu">${fmt(t.datum)}${t.datum&&t.ort?" · ":""}${esc(t.ort)} · ${esc(t.user)}</div><div class="mu">${t.hoehe?t.hoehe+" m":""}${t.hm?" · ↑"+t.hm+" Hm":""}${t.km?" · "+t.km+" km":""}</div><span class="badge">${esc(t.schw)}</span></div>${x||""}</div>`}
+function bindC(){document.querySelectorAll(".card").forEach(c=>c.onclick=()=>form(items.find(t=>t.id==c.dataset.id)))}
+function render(){
+ if(gm){gm.remove();gm=null}
+ document.querySelectorAll("#nav button").forEach(b=>b.className=b.dataset.t==tab?"on":"");
+ if(!me)return;
+ const m=$("#main");
+ if(tab==1){const f=done();m.innerHTML=filt()+(f.length?f.map(t=>card(t)).join(""):`<p class="mu">Noch keine Touren. Tippe auf +.</p>`);bindC()}
+ if(tab==3){const w=vis().filter(t=>t.wish);m.innerHTML=filt()+(w.length?w.map(t=>card(t,t.uid==me.uid?`<button class="btn s" data-ok="${t.id}">✓</button>`:"")).join(""):`<p class="mu">Keine Wunschtouren. Tippe auf +.</p>`);bindC();
+  document.querySelectorAll("[data-ok]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const t=items.find(x=>x.id==b.dataset.ok);await setDoc(doc(db,"tours",t.id),{...strip(t),wish:false,datum:today()});form({...t,wish:false,datum:today()})})}
+ if(tab==2){m.innerHTML=filt()+`<div id="gm" class="map"></div><p class="mu"><span style="color:var(--ac)">●</span> gemacht <span style="color:var(--wi)">●</span> Wunsch – Marker antippen für Details</p>`;
+  gm=L.map("gm").setView([47.5,13.5],7);L.tileLayer(OSM,{attribution:"© OpenStreetMap",maxZoom:17}).addTo(gm);
+  const pts=[];vis().filter(t=>t.lat!=null&&t.lat!=="").forEach(t=>{const c=t.wish?"#d9822b":"#2f7d4f",p=[+t.lat,+t.lon];pts.push(p);
+   L.circleMarker(p,{radius:9,color:"#fff",weight:2,fillColor:c,fillOpacity:1}).addTo(gm).on("click",()=>form(t))
+   .bindTooltip(esc(t.name)+" ("+esc(t.user)+")")});
+  if(pts.length)gm.fitBounds(pts,{padding:[30,30],maxZoom:12});bindF()}
+ if(tab==4)stats();
+ bindF();
+}
+function stats(){
+ const T=done(),by={};T.forEach(t=>{const y=(t.datum||"").slice(0,4);if(y)by[y]=(by[y]||0)+1});
+ const ys=Object.keys(by).sort().reverse();if(!yr||!by[yr])yr=ys[0];
+ const Y=T.filter(t=>(t.datum||"").startsWith(yr)),mc=Array(12).fill(0);Y.forEach(t=>mc[+t.datum.slice(5,7)-1]++);
+ const mx=Math.max(1,...mc),all=Math.max(1,...Object.values(by)),pv=by[yr-1]||0,top=Y.filter(t=>t.hoehe).sort((a,b)=>b.hoehe-a.hoehe)[0];
+ const rk={};items.filter(t=>!t.wish&&(t.datum||"").startsWith(yr)).forEach(t=>{(rk[t.user]=rk[t.user]||{n:0,h:0}).n++;rk[t.user].h+=+t.hm||0});
+ const rl=Object.entries(rk).sort((a,b)=>b[1].n-a[1].n),rm=Math.max(1,...rl.map(x=>x[1].n));
+ $("#main").innerHTML=filt()+`<div class="kpi"><div><b>${T.length}</b>Touren gesamt</div><div><b>${num(T,"hm").toLocaleString("de-AT")}</b>Höhenmeter ↑</div><div><b>${Math.round(num(T,"km")*10)/10}</b>Kilometer</div><div><b>${vis().length-T.length}</b>Wunschtouren</div></div>
+ <h3>Touren pro Jahr</h3>${ys.map(y=>`<div class="bar" data-y="${y}" style="cursor:pointer"><span>${y}</span><i style="width:${by[y]/all*60}%"></i><b>${by[y]}</b></div>`).join("")||'<p class="mu">Noch keine Daten.</p>'}
+ ${yr?`<h3>Jahr ${yr}</h3><div class="chips">${ys.map(y=>`<button data-y="${y}" class="${y==yr?"on":""}">${y}</button>`).join("")}</div>
+ <div class="kpi"><div><b>${Y.length}</b>Touren${by[yr-1]!=null?`<span class="mu"> (${Y.length-pv>=0?"+":""}${Y.length-pv} zu ${yr-1})</span>`:""}</div><div><b>${num(Y,"hm").toLocaleString("de-AT")}</b>Höhenmeter ↑</div><div><b>${Math.round(num(Y,"km")*10)/10}</b>Kilometer</div><div><b>${Math.round(num(Y,"dauer")*10)/10}</b>Stunden</div></div>
+ ${top?`<p class="mu">Höchster Gipfel: <b>${esc(top.name)}</b> (${top.hoehe} m)</p>`:""}<div class="mon">${mc.map((n,i)=>`<div><i style="height:${n/mx*90}px"></i>${n||""}<br>${MON[i]}</div>`).join("")}</div>
+ <h3>Familien-Rangliste ${yr}</h3>${rl.map(([n,v])=>`<div class="bar"><span>${esc(n)}</span><i style="width:${v.n/rm*50}%"></i><b>${v.n}</b><span class="mu" style="width:auto">${v.h.toLocaleString("de-AT")} Hm</span></div>`).join("")}`:""}`;
+ document.querySelectorAll("[data-y]").forEach(e=>e.onclick=()=>{yr=e.dataset.y;stats()});bindF();
+}
+const strip=t=>{const {id,...r}=t;return r};
+function shrink(f){return new Promise(ok=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.65))};im.onerror=()=>ok(null);im.src=r.result};r.readAsDataURL(f)})}
+async function form(t,asWish){
+ const n=!t;t=t?{...t}:{name:"",datum:asWish?"":today(),schw:SCH[1],wish:!!asWish};
+ const own=n||t.uid==me.uid,w=!!t.wish,id=t.id||(Date.now()+"-"+me.uid.slice(0,5));
+ let ph=[],add=[],rem=[],fm=null,mk=null;
+ if(!n){const s=await getDocs(query(collection(db,"photos"),where("tour","==",id)));ph=s.docs.map(d=>({id:d.id,data:d.data().data}))}
+ const o=document.createElement("div");o.className="ov";document.body.append(o);
+ const close=()=>{if(fm)fm.remove();o.remove();render()};
+ const draw=()=>{
+  if(fm){fm.remove();fm=null}
+  const dis=own?"":"disabled";
+  o.innerHTML=`<h2>${n?(w?"Neue Wunschtour":"Neue Tour"):esc(t.name)}</h2>${own?"":`<p class="mu">Von ${esc(t.user)} – nur ansehen</p>`}
+  <label>Name *</label><input id="a" ${dis} value="${esc(t.name)}"><label>Region / Ort</label><input id="b" ${dis} value="${esc(t.ort)}">
+  <div class="row">${w?"":`<div><label>Datum *</label><input id="c" type="date" ${dis} value="${esc(t.datum)}"></div>`}<div><label>Gipfelhöhe (m)</label><input id="d" type="number" ${dis} value="${esc(t.hoehe)}"></div></div>
+  <div class="row"><div><label>Aufstieg (Hm)</label><input id="e" type="number" ${dis} value="${esc(t.hm)}"></div><div><label>Strecke (km)</label><input id="f" type="number" step="0.1" ${dis} value="${esc(t.km)}"></div></div>
+  <div class="row">${w?"":`<div><label>Dauer (Std.)</label><input id="g" type="number" step="0.25" ${dis} value="${esc(t.dauer)}"></div>`}<div><label>Schwierigkeit</label><select id="h" ${dis}>${SCH.map(s=>`<option${s==t.schw?" selected":""}>${s}</option>`).join("")}</select></div></div>
+  <label>${own?"Ort auf der Karte antippen":"Ort"}</label><div id="fm" class="map" style="height:240px"></div>${own?`<p><button class="btn g s" id="gps">📍 Mein Standort</button> <span class="mu" id="gt"></span></p>`:""}
+  <label>Notizen</label><textarea id="i" rows="3" ${dis}>${esc(t.notiz)}</textarea>
+  <label>Fotos</label><div class="th">${ph.filter(p=>!rem.includes(p.id)).map(p=>`<img src="${p.data}" data-p="${p.id}">`).join("")}${add.map(p=>`<img src="${p}">`).join("")}</div>${own?`<p class="mu">Tippe auf ein Foto der Tour, um es zu entfernen.</p><input type="file" id="p" accept="image/*" multiple>`:""}
+  <div id="er" class="err"></div><div class="row" style="margin-top:12px"><button class="btn g" id="x">${own?"Abbrechen":"Schließen"}</button>${own?`<button class="btn" id="s">Speichern</button>`:""}</div>${own&&!n?`<p><button class="btn d" id="dl">Löschen</button></p>`:""}`;
+  fm=L.map(o.querySelector("#fm")).setView(t.lat!=null&&t.lat!==""?[+t.lat,+t.lon]:[47.5,13.5],t.lat!=null&&t.lat!==""?12:7);L.tileLayer(OSM,{attribution:"© OpenStreetMap",maxZoom:17}).addTo(fm);
+  const put=p=>{mk?mk.setLatLng(p):mk=L.marker(p).addTo(fm)};if(t.lat!=null&&t.lat!=="")put([+t.lat,+t.lon]);
+  if(own){fm.on("click",e=>{t.lat=+e.latlng.lat.toFixed(5);t.lon=+e.latlng.lng.toFixed(5);put(e.latlng)});
+   o.querySelector("#gps").onclick=()=>navigator.geolocation.getCurrentPosition(p=>{t.lat=+p.coords.latitude.toFixed(5);t.lon=+p.coords.longitude.toFixed(5);put([t.lat,t.lon]);fm.setView([t.lat,t.lon],13)},()=>o.querySelector("#gt").textContent="Nicht verfügbar");
+   const rd=()=>{const v=k=>{const e=o.querySelector("#"+k);return e?e.value:t[{a:"name",b:"ort",c:"datum",d:"hoehe",e:"hm",f:"km",g:"dauer",h:"schw",i:"notiz"}[k]]};Object.assign(t,{name:v("a"),ort:v("b"),datum:v("c"),hoehe:v("d"),hm:v("e"),km:v("f"),dauer:v("g"),schw:v("h"),notiz:v("i")})};
+   o.querySelector("#p").onchange=async e=>{rd();for(const f of e.target.files){const s=await shrink(f);if(s)add.push(s)}draw()};
+   o.querySelectorAll("[data-p]").forEach(i=>i.onclick=()=>{rd();rem.push(i.dataset.p);draw()});
+   o.querySelector("#s").onclick=async()=>{rd();if(!t.name.trim()||(!w&&!t.datum)){o.querySelector("#er").textContent="Bitte Name"+(w?"":" und Datum")+" angeben.";return}
+    try{await setDoc(doc(db,"tours",id),{...strip(t),uid:t.uid||me.uid,user:t.user||me.displayName||me.email,wish:w});
+     for(const p of rem)await deleteDoc(doc(db,"photos",p));
+     for(const p of add)await setDoc(doc(db,"photos",id+"_"+Math.random().toString(36).slice(2,8)),{tour:id,uid:me.uid,data:p});close()}catch(e){o.querySelector("#er").textContent=e.message}};
+   const dl=o.querySelector("#dl");if(dl)dl.onclick=async()=>{if(!dl.dataset.s){dl.dataset.s=1;dl.textContent="Wirklich löschen? Nochmal tippen";return}for(const p of ph)await deleteDoc(doc(db,"photos",p.id));await deleteDoc(doc(db,"tours",id));close()}}
+  o.querySelector("#x").onclick=close;
+ };
+ draw();
+}
+</script></body></html>
