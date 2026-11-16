@@ -196,31 +196,37 @@ function famUI(m){
  $("#pa").onclick=async()=>{const v=$("#pn").value.trim();if(v)await setDoc(doc(db,"profile","p_"+Date.now()),{name:v,role:"kind",by:me.uid})};
  document.querySelectorAll("[data-pd]").forEach(b=>b.onclick=async()=>{if(!b.dataset.s){b.dataset.s=1;b.textContent="Löschen?";return}await deleteDoc(doc(db,"profile",b.dataset.pd))});
 }
+let impQ=[];
+function nextImp(){const t=impQ.shift();if(t)form(t)}
 function importUI(){
  const o=document.createElement("div");o.className="ov";document.body.append(o);
  const close=()=>{o.remove();render()},p2=n=>String(n).padStart(2,"0"),avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
  let groups=[];
- o.innerHTML=`<h2>Aus Fotos importieren</h2><p class="mu">Wähle die Fotos deiner Touren aus. Pro Tag wird eine Tour angelegt (Datum, Ort und Höhe aus den Fotodaten, falls gespeichert) mit bis zu 10 Fotos. Name und Schwierigkeit kannst du danach ändern.</p><input type="file" id="pf" accept="image/*" multiple><div id="pg"></div><div id="er" class="err"></div><div class="row" style="margin-top:12px"><button class="btn g" id="px" type="button">Abbrechen</button></div>`;
+ o.innerHTML=`<h2>Aus Fotos importieren</h2><p class="mu">Wähle die Fotos deiner Touren aus. Pro Tag wird eine Tour angelegt. Danach sucht die App automatisch den Gipfel und trägt Höhe und Region ein. Anschließend vervollständigst du jede Tour (Tourart, Schwierigkeit, Wer war dabei …).</p><input type="file" id="pf" accept="image/*" multiple><div id="pg"></div><div id="er" class="err"></div><div class="row" style="margin-top:12px"><button class="btn g" id="px" type="button">Abbrechen</button></div>`;
  o.querySelector("#px").onclick=close;
  o.querySelector("#pf").onchange=async e=>{
   const pg=o.querySelector("#pg");pg.innerHTML='<p class="mu">Lese Fotos…</p>';const m={};
   for(const f of e.target.files){let d={};try{d=await exifr.parse(f)||{}}catch(x){}
    const k=new Date(d.DateTimeOriginal||d.CreateDate||f.lastModified),key=k.getFullYear()+"-"+p2(k.getMonth()+1)+"-"+p2(k.getDate());
-   const g=m[key]=m[key]||{datum:key,files:[],la:[],lo:[],al:[]};g.files.push({f,t:+k});
-   if(isFinite(d.latitude)&&isFinite(d.longitude)){g.la.push(d.latitude);g.lo.push(d.longitude)}if(isFinite(d.GPSAltitude)&&d.GPSAltitude>0)g.al.push(d.GPSAltitude)}
+   const g=m[key]=m[key]||{datum:key,files:[],la:[],lo:[],al:[],hi:null};g.files.push({f,t:+k});
+   if(isFinite(d.latitude)&&isFinite(d.longitude)){g.la.push(d.latitude);g.lo.push(d.longitude);if(isFinite(d.GPSAltitude)&&d.GPSAltitude>0&&(!g.hi||d.GPSAltitude>g.hi.al))g.hi={la:d.latitude,lo:d.longitude,al:d.GPSAltitude}}
+   if(isFinite(d.GPSAltitude)&&d.GPSAltitude>0)g.al.push(d.GPSAltitude)}
   groups=Object.values(m).sort((a,b)=>b.datum.localeCompare(a.datum));
-  pg.innerHTML=groups.map((g,i)=>{const dup=items.some(t=>t.datum==g.datum&&!t.wish&&part(t).includes(me.uid));return `<div class="card" style="cursor:default;display:block"><label style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" id="ck${i}" style="width:auto" ${dup?"":"checked"}><b>${fmt(g.datum)}</b> · ${g.files.length} Foto${g.files.length>1?"s":""} · ${g.la.length?"📍 Ort":"kein Ort"}${dup?" · schon vorhanden":""}</label><input id="nm${i}" value="Tour ${fmt(g.datum)}" style="margin-top:8px"></div>`}).join("")+
-   `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fa" style="width:auto"> Ganze Familie war dabei</label><p><button class="btn" id="pi" type="button">Importieren</button></p>`;
+  pg.innerHTML=groups.map((g,i)=>{const dup=items.some(t=>t.datum==g.datum&&!t.wish&&part(t).includes(me.uid));return `<div class="card" style="cursor:default;display:block"><label style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" id="ck${i}" style="width:auto" ${dup?"":"checked"}><b>${fmt(g.datum)}</b> · ${g.files.length} Foto${g.files.length>1?"s":""} · ${g.la.length?"📍 Ort":"kein Ort"}${dup?" · schon vorhanden":""}</label></div>`}).join("")+`<p><button class="btn" id="pi" type="button">Importieren</button></p>`;
   o.querySelector("#pi").onclick=async()=>{
-   const sel=groups.map((g,i)=>i).filter(i=>o.querySelector("#ck"+i).checked),others=Object.keys(users).filter(u=>u!=me.uid),fam=o.querySelector("#fa").checked,er=o.querySelector("#er");
-   try{let n=0;for(const i of sel){const g=groups[i];er.className="mu";er.textContent="Importiere "+(++n)+" von "+sel.length+"…";
-    const id=Date.now()+"-"+me.uid.slice(0,5)+"-"+i,t={name:o.querySelector("#nm"+i).value.trim()||"Tour",datum:g.datum,art:"Wandern",unter:"Bergwanderung",schw:GR("Wandern")[1],wish:false,uid:me.uid,user:me.displayName||me.email,mit:fam?others:[]};
-    if(g.la.length){t.lat=+avg(g.la).toFixed(5);t.lon=+avg(g.lo).toFixed(5)}if(g.al.length)t.hoehe=String(Math.round(Math.max(...g.al)));
-    if(t.lat!=null){try{Object.assign(t,await geo(t.lat,t.lon))}catch(e){}await new Promise(o=>setTimeout(o,1100))}
-    await setDoc(doc(db,"tours",id),t);
+   const sel=groups.map((g,i)=>i).filter(i=>o.querySelector("#ck"+i).checked),er=o.querySelector("#er"),made=[];
+   o.querySelector("#pi").disabled=true;
+   try{let n=0;for(const i of sel){const g=groups[i];er.className="mu";er.textContent="Tour "+(++n)+" von "+sel.length+": suche Gipfel …";
+    const id=Date.now()+"-"+me.uid.slice(0,5)+"-"+i,t={name:"Tour "+fmt(g.datum),datum:g.datum,art:"Wandern",unter:"Bergwanderung",schw:GR("Wandern")[1],wish:false,uid:me.uid,user:me.displayName||me.email,mit:[]};
+    const pos=g.hi||(g.la.length?{la:avg(g.la),lo:avg(g.lo),al:g.al.length?Math.max(...g.al):0}:null);
+    if(pos){t.lat=+pos.la.toFixed(5);t.lon=+pos.lo.toFixed(5);if(pos.al)t.hoehe=String(Math.round(pos.al));
+     let best=null;try{best=(await peaks(pos.la,pos.lo))[0]}catch(e){}
+     if(best){t.peaks=[{n:best.n,h:best.h||Math.round(pos.al)||0,la:best.la,lo:best.lo,bl:best.bl||"",land:best.land||""}];t.gipfel=best.n;t.name=best.n;if(best.h)t.hoehe=String(best.h);t.lat=best.la;t.lon=best.lo}
+     if(!t.peaks||!t.peaks[0].bl){try{const r=await geo(t.lat,t.lon);Object.assign(t,r);if(t.peaks)Object.assign(t.peaks[0],r)}catch(e){}await new Promise(o=>setTimeout(o,1100))}else{t.bl=t.peaks[0].bl;t.land=t.peaks[0].land}}
+    await setDoc(doc(db,"tours",id),t);made.push({...t,id});
     const a=g.files.sort((x,y)=>x.t-y.t),st=Math.max(1,a.length/10);
     for(let j=0;j<Math.min(10,a.length);j++){const d=await shrink(a[Math.floor(j*st)].f);if(d)await setDoc(doc(db,"photos",id+"_"+j+Math.random().toString(36).slice(2,6)),{tour:id,uid:me.uid,data:d})}}
-    close()}catch(x){er.className="err";er.textContent=x.message}};
+    o.remove();render();if(made.length){impQ=made.slice(1);form(made[0])}}catch(x){er.className="err";er.textContent=x.message;o.querySelector("#pi").disabled=false}};
  }}
 const LV=[[0,"🐣","Anfänger"],[3000,"🚶","Spaziergeher"],[10000,"🥾","Gemütlicher Geher"],[25000,"💪","Starker Geher"],[50000,"🐐","Bergziege"],[100000,"🏔️","Gams"],[200000,"🔥","Viech"],[400000,"😈","Bergteufel"],[800000,"⚡","Gipfelgott"],[1500000,"👑","Bergkönig"],[3000000,"🚀","Himmelsstürmer"],[5000000,"🌋","Naturgewalt"],[8849000,"🌟","Alpenlegende"]];
 const hmOf=p=>items.filter(t=>!t.wish&&part(t).includes(p)).reduce((s,t)=>s+(+t.hm||0)*mult(p),0);
@@ -261,8 +267,16 @@ function levelHTML(){
 async function geo(la,lo){const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=de&lat=${la}&lon=${lo}`);const a=(await r.json()).address||{};return {bl:a.state||a.region||a.county||"",land:a.country||""}}
 async function ovp(q){const u=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"];
  const j=await Promise.any(u.map(async b=>{const r=await fetch(b+"?data="+encodeURIComponent("[out:json][timeout:10];"+q),{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return r.json()}));return j.elements||[]}
-async function peaks(la,lo){const el=await ovp(`node(around:1200,${la},${lo})["natural"="peak"]["name"];out 12;`);
- return el.map(e=>({name:e.tags.name,ele:parseInt(e.tags.ele)||0,lat:e.lat,lon:e.lon,d:Math.hypot((e.lat-la)*111,(e.lon-lo)*111*Math.cos(la*Math.PI/180))})).sort((a,b)=>a.d-b.d).slice(0,5)}
+const first=ps=>new Promise(ok=>{let n=ps.length,d=false;ps.forEach(p=>Promise.resolve(p).then(r=>{if(!d&&r&&r.length){d=true;ok(r)}else if(!d&&--n==0)ok([])},()=>{if(!d&&--n==0)ok([])}))});
+const phMap=j=>(j.features||[]).filter(f=>f.properties&&f.properties.name&&f.geometry).map(f=>({n:f.properties.name,h:parseInt(f.properties.extra&&f.properties.extra.ele)||0,la:+f.geometry.coordinates[1].toFixed(5),lo:+f.geometry.coordinates[0].toFixed(5),bl:f.properties.state||"",land:f.properties.country||""}));
+async function phSearch(q){const r=await fetch("https://photon.komoot.io/api/?lang=de&limit=10&lat=47.3&lon=13.5&osm_tag=natural:peak&q="+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});if(!r.ok)throw 0;return phMap(await r.json())}
+async function nomS(q){const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&accept-language=de&limit=40&viewbox=4,49.5,18,45&q="+encodeURIComponent(q),{signal:AbortSignal.timeout(9000)});if(!r.ok)throw 0;
+ return (await r.json()).filter(x=>(x.category||x.class)=="natural"&&x.type=="peak").map(x=>({n:x.name||x.display_name.split(",")[0],h:parseInt(x.extratags&&x.extratags.ele)||0,la:+(+x.lat).toFixed(5),lo:+(+x.lon).toFixed(5),bl:(x.address&&(x.address.state||x.address.region))||"",land:(x.address&&x.address.country)||""}))}
+async function ovS(q){const c=q.replace(/[^\p{L}\d ]/gu,"");if(!c)return [];return (await ovp(`node["natural"="peak"]["name"~"${c}",i](45.3,5.5,49.1,17.5);out 15;`)).map(e=>({n:e.tags.name,h:parseInt(e.tags.ele)||0,la:+e.lat.toFixed(5),lo:+e.lon.toFixed(5),bl:"",land:""}))}
+async function phNear(la,lo){const r=await fetch(`https://photon.komoot.io/reverse?lang=de&limit=15&radius=2&osm_tag=natural:peak&lat=${la}&lon=${lo}`,{signal:AbortSignal.timeout(9000)});if(!r.ok)throw 0;return phMap(await r.json())}
+async function ovNear(la,lo){return (await ovp(`node(around:1500,${la},${lo})["natural"="peak"]["name"];out 15;`)).map(e=>({n:e.tags.name,h:parseInt(e.tags.ele)||0,la:+e.lat.toFixed(5),lo:+e.lon.toFixed(5),bl:"",land:""}))}
+async function peaks(la,lo){const r=await first([phNear(la,lo),ovNear(la,lo)]);
+ return r.map(p=>({...p,name:p.n,ele:p.h,lat:p.la,lon:p.lo,d:Math.hypot((p.la-la)*111,(p.lo-lo)*111*Math.cos(la*Math.PI/180))})).sort((a,b)=>a.d-b.d).slice(0,6)}
 async function gpx(f){
  const x=new DOMParser().parseFromString(await f.text(),"text/xml");let P=[...x.querySelectorAll("trkpt")];if(!P.length)P=[...x.querySelectorAll("rtept")];
  const g=(p,k)=>{const e=p.getElementsByTagName(k)[0];return e?e.textContent:null};
@@ -337,11 +351,11 @@ async function form(t,asWish){
  if(!n){try{const s=await getDocs(query(collection(db,"photos"),where("tour","==",id)));ph=s.docs.map(d=>({id:d.id,data:d.data().data}))}catch(e){}}
  const all=()=>ph.filter(p=>!rem.includes(p.id)).map(p=>({k:"p",v:p.id,data:p.data})).concat(add.map((d,i)=>({k:"a",v:i,data:d})));
  const o=document.createElement("div");o.className="ov";document.body.append(o);
- const close=()=>{if(fm)fm.remove();o.remove();render()};
+ const close=()=>{if(fm)fm.remove();o.remove();render();if(impQ.length)nextImp()};
  const draw=()=>{
   if(fm){fm.remove();fm=null}
   const dis=own?"":"disabled",others=Object.keys(users).filter(u=>u!=(t.uid||me.uid));
-  o.innerHTML=`<h2>${n?(w?"Neue Wunschtour":"Neue Tour"):esc(t.name)}</h2>${own?"":`<p class="mu">Von ${esc(t.user)} – nur ansehen</p>`}
+  o.innerHTML=`<h2>${n?(w?"Neue Wunschtour":"Neue Tour"):esc(t.name)}</h2>${impQ.length?`<p class="mu">📷 Import: noch ${impQ.length} weitere Tour(en) zum Vervollständigen. <a href="#" id="iq">Rest überspringen</a></p>`:""}${own?"":`<p class="mu">Von ${esc(t.user)} – nur ansehen</p>`}
   <section class="sec"><label>Name *</label><input id="a" ${dis} value="${esc(t.name)}">
   <div class="row">${w?"":`<div><label>Datum *</label><input id="c" type="date" ${dis} value="${esc(t.datum)}"></div>`}<div><label>Gipfelhöhe (m)</label><input id="d" type="number" ${dis} value="${esc(t.hoehe)}"></div></div></section>
   <section class="sec"><h4>⛰️ Gipfel</h4>${own?`<div class="row"><div><input id="bs" placeholder="Berg suchen, z. B. Traunstein"></div><button class="btn s" id="bb" type="button" style="flex:none">Suchen</button></div><div id="br" class="chips w"></div>`:""}
@@ -361,7 +375,7 @@ async function form(t,asWish){
   pks.forEach(p=>{if(p.la!=null&&p.la!==""&&isFinite(+p.la))L.marker([+p.la,+p.lo]).addTo(fm).bindTooltip(esc(p.n),{permanent:true,direction:"top",offset:[-15,-12]})});
   {const q=pks.filter(p=>p.la!=null&&p.la!==""&&isFinite(+p.la)).map(p=>[+p.la,+p.lo]);if(q.length>1&&!(t.track&&t.track.length>3))fm.fitBounds(q,{padding:[40,40],maxZoom:13})}
   o.querySelectorAll("[data-s]").forEach(im=>im.onclick=()=>show(all().map(p=>p.data),+im.dataset.s));
-  o.querySelector("#x").onclick=close;
+  o.querySelector("#x").onclick=close;const iq=o.querySelector("#iq");if(iq)iq.onclick=e=>{e.preventDefault();impQ=[];iq.parentNode.remove()};
   if(!own)return;
   fm.on("click",e=>{t.lat=+e.latlng.lat.toFixed(5);t.lon=+e.latlng.lng.toFixed(5);put(e.latlng);look()});
   o.querySelector("#gps").onclick=()=>navigator.geolocation.getCurrentPosition(p=>{t.lat=+p.coords.latitude.toFixed(5);t.lon=+p.coords.longitude.toFixed(5);put([t.lat,t.lon]);fm.setView([t.lat,t.lon],13);look()},()=>o.querySelector("#gt").textContent="Nicht verfügbar");
@@ -370,7 +384,7 @@ async function form(t,asWish){
    geo(t.lat,t.lon).then(g=>Object.assign(t,g)).catch(()=>{});
    try{const ps=await peaks(t.lat,t.lon);
     bx.innerHTML=ps.length?`<div class="mu">In der Nähe – antippen zum Hinzufügen:</div><div class="chips w">${ps.map((p,i)=>`<button type="button" data-k="${i}">${esc(p.name)}${p.ele?" · "+p.ele+" m":""}</button>`).join("")}</div>`:'<p class="mu">Kein benannter Gipfel in 1,2 km.</p>';
-    bx.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const p=ps[+b.dataset.k];addPeak({n:p.name,h:p.ele,la:+(+p.lat).toFixed(5),lo:+(+p.lon).toFixed(5)})})}catch(e){bx.innerHTML='<span class="mu">Gipfelsuche zu langsam oder offline. Nutze „Berg suchen".</span>'}};
+    bx.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const p=ps[+b.dataset.k];addPeak({n:p.n,h:p.h,la:p.la,lo:p.lo,bl:p.bl||"",land:p.land||""})})}catch(e){bx.innerHTML='<span class="mu">Gipfelsuche zu langsam oder offline. Nutze „Berg suchen".</span>'}};
   o.querySelector("#gx").onchange=async e=>{rd();try{const r=await gpx(e.target.files[0]);if(!w&&(!t.datum||n))t.datum=r.datum||t.datum;Object.assign(t,{km:r.km,hm:r.hm,dauer:r.dauer,lat:r.lat,lon:r.lon,track:r.track});if(r.hoehe)t.hoehe=r.hoehe;draw();look()}catch(x){o.querySelector("#er").textContent="GPX: "+x.message}};
   const recompute=()=>{if(pks.length){const top=pks.reduce((a,b)=>(+b.h||0)>(+a.h||0)?b:a);t.gipfel=top.n;const m=Math.max(...pks.map(x=>+x.h||0));if(m)t.hoehe=m;const f=pks.find(x=>x.la!=null&&x.la!=="");if(f){t.lat=+f.la;t.lon=+f.lo;t.bl=f.bl||t.bl||"";t.land=f.land||t.land||""}}else t.gipfel=""};
   const addPeak=async p=>{rd();const oldG=t.gipfel;
@@ -380,11 +394,7 @@ async function form(t,asWish){
    recompute();if(!(t.name||"").trim()||t.name==oldG)t.name=t.gipfel||p.n;draw()};
   o.querySelectorAll("[data-rp]").forEach(b=>b.onclick=()=>{rd();pks.splice(+b.dataset.rp,1);recompute();draw()});
   const run=async()=>{const q=o.querySelector("#bs").value.trim();if(!q)return;const br=o.querySelector("#br");br.innerHTML='<span class="mu">Suche …</span>';
-   try{let j=[];
-    try{const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&accept-language=de&limit=40&viewbox=4,49.5,18,45&q="+encodeURIComponent(q),{signal:AbortSignal.timeout(8000)});
-     j=(await r.json()).filter(x=>(x.category||x.class)=="natural"&&x.type=="peak").map(x=>({n:x.name||x.display_name.split(",")[0],h:parseInt(x.extratags&&x.extratags.ele)||0,la:+(+x.lat).toFixed(5),lo:+(+x.lon).toFixed(5),bl:(x.address&&(x.address.state||x.address.region))||"",land:(x.address&&x.address.country)||""}))}catch(e){}
-    if(!j.length){const el=await ovp(`node["natural"="peak"]["name"~"${q.replace(/[^\p{L}\d ]/gu,"")}",i](45.3,5.5,49.1,17.5);out 15;`);j=el.map(e=>({n:e.tags.name,h:parseInt(e.tags.ele)||0,la:+e.lat.toFixed(5),lo:+e.lon.toFixed(5),bl:"",land:""}))}
-    j=j.slice(0,8);
+   try{const j=(await first([nomS(q),phSearch(q),ovS(q)])).slice(0,8);
     br.innerHTML=j.length?j.map((x,i)=>`<button type="button" data-b="${i}">${esc(x.n)}${x.h?" · "+x.h+" m":""}${x.bl||x.land?" · "+esc(x.bl||x.land):""}</button>`).join(""):'<span class="mu">Kein Berg gefunden. Andere Schreibweise versuchen oder auf die Karte tippen.</span>';
     br.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>addPeak(j[+b.dataset.b]))}catch(e){br.innerHTML='<span class="mu">Suche nicht möglich (offline?).</span>'}};
   o.querySelector("#bb").onclick=run;o.querySelector("#bs").onkeydown=e=>{if(e.key=="Enter"){e.preventDefault();run()}};
