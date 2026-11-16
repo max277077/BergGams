@@ -94,6 +94,9 @@ nav button{display:flex;flex-direction:column;align-items:center;gap:2px;border:
 nav button.on{background:none;color:var(--ac)}
 nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;box-sizing:border-box}
 nav button.on svg{background:var(--soft);border-radius:14px;padding:5px 12px;width:48px;height:32px}
+details.grp{margin:8px 0}details.grp>summary{cursor:pointer;list-style:none;padding:12px 14px;background:var(--card);border:1px solid var(--ln);border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+details.grp>summary::-webkit-details-marker{display:none}details.grp>summary>span:first-child::before{content:"▸";display:inline-block;margin-right:8px;color:var(--mu);transition:transform .15s}
+details.grp[open]>summary>span:first-child::before{transform:rotate(90deg)}details.grp>.in{padding:2px 0 2px 10px}
 </style></head><body>
 <header><span class="brand"><svg class="logo" viewBox="0 0 140 140" aria-label="BergGams"><defs><clipPath id="lc"><circle cx="70" cy="70" r="68"/></clipPath></defs><circle cx="70" cy="70" r="68" fill="#1f4a33"/><g clip-path="url(#lc)"><path d="M10 150 L52 88 L72 114 L98 74 L140 150Z" fill="#2f6a4a"/><g transform="translate(16 14)"><path d="M52 46 L50 22 Q49 12 38 14 M57 44 L57 26 Q57 17 48 18" fill="none" stroke="#f3ead2" stroke-width="4.5" stroke-linecap="round"/><path d="M34 54 L21 47 L37 43Z" fill="#f3ead2"/><path d="M24 100 L36 62 Q38 50 48 46 Q58 42 66 52 L82 66 Q88 70 84 76 Q80 80 72 78 L62 80 Q56 84 56 100Z" fill="#f3ead2"/><path d="M62 57 L78 69" stroke="#1f4a33" stroke-width="2.6" stroke-linecap="round"/><circle cx="61.5" cy="56" r="2.6" fill="#1f4a33"/></g></g></svg><span class="wm"><i>B</i><i>e</i><i>r</i><i>g</i><i>G</i><i>a</i><i>m</i><i>s</i></span></span><button class="btn g s" id="out" hidden>Abmelden</button></header>
 <div id="tag" class="tag"></div>
@@ -112,7 +115,7 @@ const setDoc=(r,d)=>T2(_setDoc(r,JSON.parse(JSON.stringify(d)))),deleteDoc=r=>T2
 const ART={"Wandern":{i:"🥾",u:["Wanderung","Bergwanderung","Gipfeltour","Hüttenwanderung","Weitwanderung","Schneeschuhwandern"]},"Klettern":{i:"🧗",u:["Klettersteig","Alpinklettern","Mehrseillängen","Sportklettern","Eisklettern"]},"Hochtour":{i:"🏔️",u:["Gletschertour","Hochtour","Skitour","Skihochtour","Firn & Mixed"]},"Berglauf":{i:"🏃",u:["Trailrun","Berglauf","Vertical Kilometer","Ultratrail","Skyrace"]}};
 const GR=(a,u)=>a=="Wandern"?["T1 – Wandern","T2 – Bergwandern","T3 – anspruchsvoll","T4 – Alpinwandern","T5 – anspruchsvoll alpin","T6 – schwer alpin"]:a=="Klettern"?(u=="Klettersteig"?["A","B","C","D","E","F"]:u=="Eisklettern"?["WI 1","WI 2","WI 3","WI 4","WI 5","WI 6"]:["UIAA 2","UIAA 3","UIAA 4","UIAA 5","UIAA 6","UIAA 7","UIAA 8+"]):a=="Hochtour"?["F","WS","ZS","S","SS","AS"]:["leicht","mittel","schwer","extrem"];
 const fix=t=>{if(!t.art){if(t.schw=="Klettersteig")Object.assign(t,{art:"Klettern",unter:"Klettersteig",schw:""});else if(t.schw=="Skitour")Object.assign(t,{art:"Hochtour",unter:"Skitour",schw:""});else t.art="Wandern"}return t};
-let tf="",qs="",gv="hoehe";const artChips=()=>`<div class="chips"><button data-a="" class="${tf?"":"on"}">Alle Arten</button>${Object.keys(ART).map(a=>`<button data-a="${a}" class="${tf==a?"on":""}">${ART[a].i} ${a}</button>`).join("")}</div>`;
+let tf="",qs="",gv="ort",opn={},filling=false;const tried=new Set();const artChips=()=>`<div class="chips"><button data-a="" class="${tf?"":"on"}">Alle Arten</button>${Object.keys(ART).map(a=>`<button data-a="${a}" class="${tf==a?"on":""}">${ART[a].i} ${a}</button>`).join("")}</div>`;
 const MON=["J","F","M","A","M","J","J","A","S","O","N","D"],OSM="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 let me=null,items=[],users={},uDocs={},pDocs={},tab=1,who="",yr=null,gm=null,unsub=null,unsub2=null;
 const $=s=>document.querySelector(s),esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -139,7 +142,7 @@ document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{tab=+b.datase
 $("#add").onclick=()=>form(null,tab==3);
 function filt(){const ids=[...new Set(Object.keys(users).concat(items.map(t=>t.uid)))];return ids.length>1?`<div class="chips"><button data-w="" class="${who?"":"on"}">Alle</button>${ids.map(u=>`<button data-w="${u}" class="${who==u?"on":""}">${esc(uname(u))}</button>`).join("")}</div>`:""}
 function bindF(){document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{who=b.dataset.w;render()})}
-function card(t,x){const m=(t.mit||[]).map(uname).map(esc).join(", ");return `<div class="card" data-id="${t.id}"><div class="ph">${(ART[t.art]||ART.Wandern).i}</div><div style="flex:1;min-width:0"><b>${esc(t.name)}</b><div class="mu">${fmt(t.datum)}${t.datum&&t.ort?" · ":""}${esc(t.ort)} · ${esc(t.user)}${m?" + "+m:""}</div><div class="mu">${t.hoehe?t.hoehe+" m":""}${t.hm?" · ↑"+t.hm+" Hm":""}${t.km?" · "+t.km+" km":""}</div><span class="badge">${esc(t.unter||t.art)}${t.schw?" · "+esc(t.schw):""}</span></div>${x||""}</div>`}
+function card(t,x){const m=(t.mit||[]).map(uname).map(esc).join(", ");return `<div class="card" data-id="${t.id}"><div class="ph">${(ART[t.art]||ART.Wandern).i}</div><div style="flex:1;min-width:0"><b>${esc(t.name)}</b>${(t.peaks||[]).length>1?`<div class="mu">⛰️ ${t.peaks.map(p=>esc(p.n)).join(" · ")}</div>`:""}<div class="mu">${fmt(t.datum)}${t.datum&&t.ort?" · ":""}${esc(t.ort)} · ${esc(t.user)}${m?" + "+m:""}</div><div class="mu">${t.hoehe?t.hoehe+" m":""}${t.hm?" · ↑"+t.hm+" Hm":""}${t.km?" · "+t.km+" km":""}</div><span class="badge">${esc(t.unter||t.art)}${t.schw?" · "+esc(t.schw):""}</span></div>${x||""}</div>`}
 function bindC(){document.querySelectorAll(".card").forEach(c=>c.onclick=()=>form(items.find(t=>t.id==c.dataset.id)))}
 function render(){
  if(gm){gm.remove();gm=null}
@@ -148,14 +151,13 @@ function render(){
  const ur=users[me.uid];$("#me").textContent=(me.displayName||me.email)+(ur?" · "+(ur.role=="kind"?"Kind (Höhenmeter ×4)":"Erwachsene/r"):"")+(navigator.onLine?"":" · 📴 offline");
  const m=$("#main");
  if(tab==1){m.innerHTML=artChips()+`<p><button class="btn g s" id="imp" type="button">${IC.cam} Aus Fotos importieren</button></p>`+filt()+`<input id="qs" placeholder="Suchen (Name, Gipfel, Ort)…" value="${esc(qs)}" style="margin:6px 0"><div id="lst"></div>`;
-  const fl=()=>{const f=done().filter(t=>(!tf||t.art==tf)&&((t.name||"")+" "+(t.gipfel||"")+" "+(t.ort||"")+" "+(t.bl||"")).toLowerCase().includes(qs.toLowerCase()));$("#lst").innerHTML=f.length?f.map(t=>card(t)).join(""):`<p class="mu">Keine Touren gefunden. Tippe auf +.</p>`;bindC()};
+  const fl=()=>{const f=done().filter(t=>(!tf||t.art==tf)&&((t.name||"")+" "+(t.gipfel||"")+" "+(t.peaks||[]).map(p=>p.n).join(" ")+" "+(t.ort||"")+" "+(t.bl||"")).toLowerCase().includes(qs.toLowerCase()));$("#lst").innerHTML=f.length?f.map(t=>card(t)).join(""):`<p class="mu">Keine Touren gefunden. Tippe auf +.</p>`;bindC()};
   fl();$("#qs").oninput=e=>{qs=e.target.value;fl()};$("#imp").onclick=importUI;document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{tf=b.dataset.a;render()})}
  if(tab==3){const w=vis().filter(t=>t.wish);m.innerHTML=filt()+(w.length?w.map(t=>card(t,t.uid==me.uid?`<button class="btn s" data-ok="${t.id}">✓</button>`:"")).join(""):`<p class="mu">Keine Wunschtouren. Tippe auf +.</p>`);bindC();
   document.querySelectorAll("[data-ok]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const t=items.find(x=>x.id==b.dataset.ok);await setDoc(doc(db,"tours",t.id),{...strip(t),wish:false,datum:today()});form({...t,wish:false,datum:today()})})}
  if(tab==2){m.innerHTML=filt()+`<div id="gm" class="map"></div><p class="mu"><span style="color:var(--ac)">●</span> gemacht <span style="color:var(--wi)">●</span> Wunsch – Marker antippen für Details</p>`;
   gm=L.map("gm").setView([47.5,13.5],7);L.tileLayer(OSM,{attribution:"© OpenStreetMap",maxZoom:17}).addTo(gm);
-  const pts=[];vis().filter(t=>t.lat!=null&&t.lat!=="").forEach(t=>{const c=t.wish?"#d9822b":"#2f7d4f",p=[+t.lat,+t.lon];pts.push(p);
-   L.circleMarker(p,{radius:9,color:"#fff",weight:2,fillColor:c,fillOpacity:1}).addTo(gm).on("click",()=>form(t)).bindTooltip(esc(t.name)+" ("+esc(t.user)+")")});
+  const pts=[];vis().forEach(t=>{const c=t.wish?"#d9822b":"#2f7d4f";ptsOf(t).forEach(q=>{const p=[+q.la,+q.lo];pts.push(p);L.circleMarker(p,{radius:9,color:"#fff",weight:2,fillColor:c,fillOpacity:1}).addTo(gm).on("click",()=>form(t)).bindTooltip(esc(q.n||t.name)+" ("+esc(t.user)+")")})});
   vis().filter(t=>t.track&&t.track.length>3).forEach(t=>{const a=[];for(let i=0;i<t.track.length;i+=2)a.push([t.track[i],t.track[i+1]]);L.polyline(a,{color:t.wish?"#d9822b":"#e0622b",weight:3,opacity:.75}).addTo(gm)});
   if(pts.length)gm.fitBounds(pts,{padding:[30,30],maxZoom:12})}
  if(tab==4)stats();
@@ -211,16 +213,71 @@ function importUI(){
     for(let j=0;j<Math.min(10,a.length);j++){const d=await shrink(a[Math.floor(j*st)].f);if(d)await setDoc(doc(db,"photos",id+"_"+j+Math.random().toString(36).slice(2,6)),{tour:id,uid:me.uid,data:d})}}
     close()}catch(x){er.className="err";er.textContent=x.message}};
  }}
-const LV=[[0,"🐣","Anfänger"],[3000,"🚶","Spaziergeher"],[10000,"🥾","Gemütlicher Geher"],[25000,"💪","Starker Geher"],[50000,"🐐","Bergziege"],[100000,"🏔️","Gams"],[200000,"🔥","Viech"],[400000,"😈","Bergteufel"],[800000,"⚡","Gipfelgott"]];
+const LV=[[0,"🐣","Anfänger"],[3000,"🚶","Spaziergeher"],[10000,"🥾","Gemütlicher Geher"],[25000,"💪","Starker Geher"],[50000,"🐐","Bergziege"],[100000,"🏔️","Gams"],[200000,"🔥","Viech"],[400000,"😈","Bergteufel"],[800000,"⚡","Gipfelgott"],[1500000,"👑","Bergkönig"],[3000000,"🚀","Himmelsstürmer"],[5000000,"🌋","Naturgewalt"],[8849000,"🌟","Alpenlegende"]];
 const hmOf=p=>items.filter(t=>!t.wish&&part(t).includes(p)).reduce((s,t)=>s+(+t.hm||0)*mult(p),0);
 const lvl=h=>{let i=0;LV.forEach((l,k)=>{if(h>=l[0])i=k});return i};
-const BADGES=[["🌱","Erste Tour",T=>T.length>=1],["🔟","10 Touren",T=>T.length>=10],["🏅","50 Touren",T=>T.length>=50],["⛰️","Erster 1000er",T=>T.some(t=>+t.hoehe>=1000)],["🏔️","Erster 2000er",T=>T.some(t=>+t.hoehe>=2000)],["🗻","Erster 3000er",T=>T.some(t=>+t.hoehe>=3000)],["📈","1000 Hm an einem Tag",T=>T.some(t=>+t.hm>=1000)],["🌍","Everest (8.849 Hm gesamt)",(T,h)=>h>=8849],["🎯","Allrounder (4 Tourarten)",T=>new Set(T.map(t=>t.art)).size>=4],["🇪🇺","3 Länder",T=>new Set(T.map(t=>t.land).filter(Boolean)).size>=3],["👨‍👩‍👧","Familientour (3+)",T=>T.some(t=>part(t).length>=3)]];
+const pkS=(T,f)=>new Set(T.flatMap(t=>pkOf(t)).filter(f||(()=>true)).map(p=>String(p.n||"").trim().toLowerCase()).filter(Boolean));
+const mo=t=>+(t.datum||"0000-00").slice(5,7),yy=t=>(t.datum||"").slice(0,4),sumK=T=>T.reduce((s,t)=>s+(+t.km||0),0),mx=(T,f)=>Math.max(0,...T.map(t=>+t[f]||0));
+const BLS=["Burgenland","Kärnten","Niederösterreich","Oberösterreich","Salzburg","Steiermark","Tirol","Vorarlberg","Wien"];
+const rep5=T=>{const c={};T.forEach(t=>pkOf(t).forEach(p=>{const k=String(p.n||"").trim().toLowerCase();if(k)c[k]=(c[k]||0)+1}));return Math.max(0,...Object.values(c))};
+const seas=T=>{const z=new Set();T.forEach(t=>{const m=mo(t);if(m)z.add(m==12||m<3?"w":m<6?"f":m<9?"s":"h")});return z.size};
+const monthsYear=T=>{const c={};T.forEach(t=>{const y=yy(t);if(y)(c[y]=c[y]||new Set()).add(mo(t))});return Math.max(0,...Object.values(c).map(z=>z.size))};
+const toursYear=T=>{const c={};T.forEach(t=>{const y=yy(t);if(y)c[y]=(c[y]||0)+1});return Math.max(0,...Object.values(c))};
+const BADGES=[["🌱","Erste Tour",T=>T.length>=1],
+["🔟","10 Touren",T=>T.length>=10],
+["🏅","25 Touren",T=>T.length>=25],
+["🥈","50 Touren",T=>T.length>=50],
+["🥇","100 Touren",T=>T.length>=100],
+["🏆","250 Touren",T=>T.length>=250],
+["⛰️","Erster 1000er",T=>mx(T,"hoehe")>=1000],
+["🏔️","Erster 2000er",T=>mx(T,"hoehe")>=2000],
+["🗻","Erster 3000er",T=>mx(T,"hoehe")>=3000],
+["❄️","Erster 4000er",T=>mx(T,"hoehe")>=4000],
+["🧗","10 verschiedene 2000er",T=>pkS(T,p=>+p.h>=2000).size>=10],
+["💎","5 verschiedene 3000er",T=>pkS(T,p=>+p.h>=3000).size>=5],
+["🦅","3 verschiedene 4000er",T=>pkS(T,p=>+p.h>=4000).size>=3],
+["📈","1000 Hm an einem Tag",T=>mx(T,"hm")>=1000],
+["🚀","1500 Hm an einem Tag",T=>mx(T,"hm")>=1500],
+["🔥","2000 Hm an einem Tag",T=>mx(T,"hm")>=2000],
+["💥","3000 Hm an einem Tag",T=>mx(T,"hm")>=3000],
+["🥾","20-km-Tour",T=>mx(T,"km")>=20],
+["🦵","30-km-Tour",T=>mx(T,"km")>=30],
+["🏃","Marathon-Tour (42 km)",T=>mx(T,"km")>=42],
+["⏱️","8-Stunden-Tour",T=>mx(T,"dauer")>=8],
+["🌙","12-Stunden-Tour",T=>mx(T,"dauer")>=12],
+["🌍","Everest (8.849 Hm gesamt)",(T,h)=>h>=8849],
+["🌋","5× Everest (44.245 Hm)",(T,h)=>h>=44245],
+["🛰️","10× Everest (88.490 Hm)",(T,h)=>h>=88490],
+["🛣️","100 km gesamt",T=>sumK(T)>=100],
+["🛤️","500 km gesamt",T=>sumK(T)>=500],
+["🗺️","1000 km gesamt",T=>sumK(T)>=1000],
+["🧗‍♀️","Erste Klettertour",T=>T.some(t=>t.art=="Klettern")],
+["⛓️","Klettersteig D oder schwerer",T=>T.some(t=>t.unter=="Klettersteig"&&["D","E","F"].includes(t.schw))],
+["🧊","Erste Hochtour",T=>T.some(t=>t.art=="Hochtour")],
+["💨","Erster Berglauf",T=>T.some(t=>t.art=="Berglauf")],
+["🎯","Allrounder (4 Tourarten)",T=>new Set(T.map(t=>t.art)).size>=4],
+["📍","3 Bundesländer / Regionen",T=>new Set(T.map(t=>t.bl).filter(Boolean)).size>=3],
+["🇦🇹","Alle 9 Bundesländer",T=>BLS.every(b=>T.some(t=>t.bl==b))],
+["🇪🇺","3 Länder",T=>new Set(T.map(t=>t.land).filter(Boolean)).size>=3],
+["🌐","5 Länder",T=>new Set(T.map(t=>t.land).filter(Boolean)).size>=5],
+["🔭","10 verschiedene Gipfel",T=>pkS(T).size>=10],
+["🎒","25 verschiedene Gipfel",T=>pkS(T).size>=25],
+["🧭","50 verschiedene Gipfel",T=>pkS(T).size>=50],
+["👑","100 verschiedene Gipfel",T=>pkS(T).size>=100],
+["🔁","Gipfel-Stammgast (5× derselbe)",T=>rep5(T)>=5],
+["♾️","Gipfel-Legende (10× derselbe)",T=>rep5(T)>=10],
+["👨‍👩‍👧","Familientour (3+ dabei)",T=>T.some(t=>part(t).length>=3)],
+["👪","Großfamilientour (5+ dabei)",T=>T.some(t=>part(t).length>=5)],
+["☀️","Touren in allen 4 Jahreszeiten",T=>seas(T)>=4],
+["⛷️","Wintergipfel (2000er im Winter)",T=>T.some(t=>{const m=mo(t);return (m==12||m<3)&&+t.hoehe>=2000})],
+["📅","Touren in 12 Monaten eines Jahres",T=>monthsYear(T)>=12],
+["🗓️","50 Touren in einem Jahr",T=>toursYear(T)>=50]];
 function levelHTML(){
  const p=who||me.uid,h=hmOf(p),i=lvl(h),nx=LV[i+1],T=items.filter(t=>!t.wish&&part(t).includes(p)),pc=nx?Math.round((h-LV[i][0])/(nx[0]-LV[i][0])*100):100,bd=BADGES.map(b=>[b,b[2](T,h)]);
- return `<div class="card" style="cursor:default;display:block"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:44px">${LV[i][1]}</div><div style="flex:1"><div class="mu">${esc(uname(p))} · Level ${i+1}</div><b style="font-size:20px">${LV[i][2]}</b><div class="mu">${h.toLocaleString("de-AT")} Hm${mult(p)>1?" (Kind ×4)":""}</div></div></div>${nx?`<div style="height:14px;border:2px solid var(--bd);border-radius:8px;margin-top:10px;overflow:hidden"><div style="width:${pc}%;height:100%;background:var(--hi)"></div></div><div class="mu">Noch ${(nx[0]-h).toLocaleString("de-AT")} Hm bis ${nx[1]} ${nx[2]}</div>`:`<div class="mu">Höchstes Level erreicht!</div>`}</div><h3>Abzeichen ${bd.filter(x=>x[1]).length}/${BADGES.length}</h3><div class="chips w">${bd.map(([b,ok])=>`<span class="badge" style="opacity:${ok?1:.35};padding:5px 10px;font-size:13px">${b[0]} ${b[1]}</span>`).join("")}</div>`}
+ return `<div class="card" style="cursor:default;display:block"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:44px">${LV[i][1]}</div><div style="flex:1"><div class="mu">${esc(uname(p))} · Level ${i+1}</div><b style="font-size:20px">${LV[i][2]}</b><div class="mu">${h.toLocaleString("de-AT")} Hm${mult(p)>1?" (Kind ×4)":""}</div></div></div>${nx?`<div style="height:14px;border:2px solid var(--bd);border-radius:8px;margin-top:10px;overflow:hidden"><div style="width:${pc}%;height:100%;background:var(--hi)"></div></div><div class="mu">Noch ${(nx[0]-h).toLocaleString("de-AT")} Hm bis ${nx[1]} ${nx[2]}</div>`:`<div class="mu">Höchstes Level erreicht!</div>`}</div><h3>Abzeichen ${bd.filter(x=>x[1]).length}/${BADGES.length}</h3><div class="chips w">${bd.filter(x=>x[1]).map(([b])=>`<span class="badge" style="padding:6px 11px;font-size:13px">${b[0]} ${b[1]}</span>`).join("")||'<span class="mu">Noch keine – los geht’s!</span>'}</div><details style="margin-top:8px"><summary class="mu">Noch zu holen (${bd.filter(x=>!x[1]).length})</summary><div class="chips w" style="margin-top:6px">${bd.filter(x=>!x[1]).map(([b])=>`<span class="badge" style="opacity:.45;padding:6px 11px;font-size:13px">${b[0]} ${b[1]}</span>`).join("")}</div></details>`}
 async function geo(la,lo){const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=de&lat=${la}&lon=${lo}`);const a=(await r.json()).address||{};return {bl:a.state||a.region||a.county||"",land:a.country||""}}
 async function peaks(la,lo){const q=`[out:json][timeout:15];node(around:1500,${la},${lo})["natural"="peak"]["name"];out 12;`;const r=await fetch("https://overpass-api.de/api/interpreter?data="+encodeURIComponent(q));const j=await r.json();
- return j.elements.map(e=>({name:e.tags.name,ele:parseInt(e.tags.ele)||0,d:Math.hypot((e.lat-la)*111,(e.lon-lo)*111*Math.cos(la*Math.PI/180))})).sort((a,b)=>a.d-b.d).slice(0,5)}
+ return j.elements.map(e=>({name:e.tags.name,ele:parseInt(e.tags.ele)||0,lat:e.lat,lon:e.lon,d:Math.hypot((e.lat-la)*111,(e.lon-lo)*111*Math.cos(la*Math.PI/180))})).sort((a,b)=>a.d-b.d).slice(0,5)}
 async function gpx(f){
  const x=new DOMParser().parseFromString(await f.text(),"text/xml");let P=[...x.querySelectorAll("trkpt")];if(!P.length)P=[...x.querySelectorAll("rtept")];
  const g=(p,k)=>{const e=p.getElementsByTagName(k)[0];return e?e.textContent:null};
@@ -231,25 +288,42 @@ async function gpx(f){
  if(es.length){let ref=es[0].e;hi=es.reduce((a,b)=>b.e>a.e?b:a);es.forEach(p=>{if(p.e-ref>=3){up+=p.e-ref;ref=p.e}else if(p.e<ref)ref=p.e})}
  const ts=pts.filter(p=>p.t&&isFinite(p.t)),st=Math.ceil(pts.length/150),tr=[];for(let i=0;i<pts.length;i+=st)tr.push(+pts[i].la.toFixed(5),+pts[i].lo.toFixed(5));
  return {km:+km.toFixed(1),hm:Math.round(up),hoehe:es.length?Math.round(hi.e):null,dauer:ts.length>1?+((ts[ts.length-1].t-ts[0].t)/36e5).toFixed(1):null,datum:ts.length?ts[0].t.toISOString().slice(0,10):null,lat:+hi.la.toFixed(5),lon:+hi.lo.toFixed(5),track:tr}}
+async function fillRegions(){
+ const A=items.filter(t=>t.uid==me.uid&&!tried.has(t.id)&&pkOf(t).some(p=>p.la!=null&&p.la!==""&&!p.bl));
+ for(const t of A){tried.add(t.id);let ch=false;const pk=t.peaks&&t.peaks.length?t.peaks.map(p=>({...p})):null;
+  try{
+   if(pk){for(const p of pk){if(p.la!=null&&p.la!==""&&!p.bl){const r=await geo(p.la,p.lo);if(r.bl||r.land){Object.assign(p,r);ch=true}await new Promise(o=>setTimeout(o,1100))}}}
+   else if(t.lat!=null&&t.lat!==""&&!t.bl){const r=await geo(t.lat,t.lon);if(r.bl||r.land){Object.assign(t,r);ch=true}await new Promise(o=>setTimeout(o,1100))}
+   if(ch)await setDoc(doc(db,"tours",t.id),{...strip(t),...(pk?{peaks:pk}:{})})
+  }catch(e){}}}
 function gipfel(){
  const T=done(),G={};
- T.forEach(t=>{const k=(t.gipfel||t.name||"").trim();if(!k)return;const g=G[k]=G[k]||{name:k,h:0,n:0,last:"",bl:"",land:"",id:t.id};g.n++;if(+t.hoehe>g.h)g.h=+t.hoehe;if((t.datum||"")>=g.last){g.last=t.datum||"";g.id=t.id;g.bl=t.bl||g.bl;g.land=t.land||g.land}});
- const L=Object.values(G),band=g=>g.h>=3000?"3000er":g.h>=2000?"2000er":g.h>=1000?"1000er":g.h>0?"unter 1000 m":"ohne Höhe";
- const key={hoehe:band,bl:g=>g.bl||"unbekannt",land:g=>g.land||"unbekannt",az:g=>(g.name[0]||"#").toUpperCase()}[gv],grp={};
- L.forEach(g=>(grp[key(g)]=grp[key(g)]||[]).push(g));
- const ord=gv=="hoehe"?["3000er","2000er","1000er","unter 1000 m","ohne Höhe"].filter(k=>grp[k]):Object.keys(grp).sort((a,b)=>gv=="az"?a.localeCompare(b):grp[b].length-grp[a].length||a.localeCompare(b));
- const need=items.some(t=>t.uid==me.uid&&t.lat!=null&&t.lat!==""&&!t.bl);
- $("#main").innerHTML=filt()+`<p class="mu"><b>${L.length}</b> verschiedene Gipfel · ${T.length} Touren</p><div class="chips">${[["hoehe","Nach Höhe"],["bl","Bundesland / Region"],["land","Land"],["az","A–Z"]].map(([k,n])=>`<button data-g="${k}" class="${gv==k?"on":""}">${n}</button>`).join("")}</div>`
-  +(need?`<p><button class="btn g s" id="gf" type="button">${IC.pin} Regionen für meine Touren ergänzen</button></p>`:"")
-  +(ord.map(k=>`<h3>${esc(k)} (${grp[k].length})</h3>`+grp[k].sort((a,b)=>gv=="az"?a.name.localeCompare(b.name):b.h-a.h).map(g=>`<div class="card" data-id="${g.id}"><div class="ph">⛰️</div><div style="flex:1;min-width:0"><b>${esc(g.name)}</b><div class="mu">${g.h?g.h+" m · ":""}${g.n}× bestiegen · zuletzt ${fmt(g.last)}</div>${g.bl||g.land?`<div class="mu">${esc([g.bl,g.land].filter(Boolean).join(", "))}</div>`:""}</div></div>`).join("")).join("")||`<p class="mu">Noch keine Gipfel. Trage Touren mit Gipfelname ein.</p>`);
- document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{gv=b.dataset.g;gipfel()});bindC();
- const gf=$("#gf");if(gf)gf.onclick=async()=>{const A=items.filter(t=>t.uid==me.uid&&t.lat!=null&&t.lat!==""&&!t.bl);let n=0;for(const t of A){gf.textContent="Ergänze "+(++n)+" von "+A.length+"…";try{const r=await geo(t.lat,t.lon);if(r.bl||r.land)await setDoc(doc(db,"tours",t.id),{...strip(t),...r})}catch(e){}await new Promise(o=>setTimeout(o,1100))}gf.textContent="Fertig"}}
+ T.forEach(t=>pkOf(t).forEach(p=>{const k=String(p.n||"").trim();if(!k)return;const g=G[k.toLowerCase()]=G[k.toLowerCase()]||{name:k,h:0,n:0,last:"",bl:"",land:"",id:t.id};g.n++;if(+p.h>g.h)g.h=+p.h;if((t.datum||"")>=g.last){g.last=t.datum||"";g.id=t.id}g.bl=g.bl||p.bl||t.bl||"";g.land=g.land||p.land||t.land||""}));
+ const PL=Object.values(G),band=g=>g.h>=4000?"4000er":g.h>=3000?"3000er":g.h>=2000?"2000er":g.h>=1000?"1000er":g.h>0?"unter 1000 m":"ohne Höhe";
+ const row=g=>`<div class="card" data-id="${g.id}"><div class="ph">⛰️</div><div style="flex:1;min-width:0"><b>${esc(g.name)}</b><div class="mu">${g.h?g.h+" m · ":""}${g.n}× bestiegen · zuletzt ${fmt(g.last)}</div></div></div>`;
+ const so=(a,b)=>gv=="az"?a.name.localeCompare(b.name):b.h-a.h;
+ const det=(key,title,n,inner,dflt)=>`<details class="grp" data-k="${esc(key)}" ${(opn[key]===undefined?dflt:opn[key])?"open":""}><summary><span>${esc(title)}</span><span class="mu">${n}</span></summary><div class="in">${inner}</div></details>`;
+ let body="";
+ if(gv=="ort"){const bl={};PL.forEach(g=>{const c=g.land||"Land unbekannt",r=g.bl||"Region unbekannt";bl[c]=bl[c]||{};(bl[c][r]=bl[c][r]||[]).push(g)});
+  const cc=o=>Object.values(o).reduce((s,a)=>s+a.length,0);
+  body=Object.keys(bl).sort((a,b)=>cc(bl[b])-cc(bl[a])||a.localeCompare(b)).map(c=>det("L:"+c,"🌍 "+c,cc(bl[c]),Object.keys(bl[c]).sort((a,b)=>bl[c][b].length-bl[c][a].length||a.localeCompare(b)).map(r=>det("R:"+c+"/"+r,r,bl[c][r].length,bl[c][r].sort(so).map(row).join(""),false)).join(""),true)).join("")}
+ else{const k=g=>gv=="hoehe"?band(g):(g.name[0]||"#").toUpperCase(),grp={};PL.forEach(g=>(grp[k(g)]=grp[k(g)]||[]).push(g));
+  const ord=gv=="hoehe"?["4000er","3000er","2000er","1000er","unter 1000 m","ohne Höhe"].filter(x=>grp[x]):Object.keys(grp).sort((a,b)=>a.localeCompare(b));
+  body=ord.map(x=>det("G:"+gv+x,x,grp[x].length,grp[x].sort(so).map(row).join(""),true)).join("")}
+ const need=items.some(t=>t.uid==me.uid&&!tried.has(t.id)&&pkOf(t).some(p=>p.la!=null&&p.la!==""&&!p.bl));
+ $("#main").innerHTML=filt()+`<p class="mu"><b>${PL.length}</b> verschiedene Gipfel · ${T.length} Touren</p><div class="chips">${[["ort","Land & Region"],["hoehe","Nach Höhe"],["az","A–Z"]].map(([k,n])=>`<button data-g="${k}" class="${gv==k?"on":""}">${n}</button>`).join("")}</div>${need?'<p class="mu">Regionen werden automatisch ergänzt …</p>':""}${body||'<p class="mu">Noch keine Gipfel. Trage Touren mit Gipfeln ein.</p>'}`;
+ document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{gv=b.dataset.g;gipfel()});
+ document.querySelectorAll("details.grp").forEach(d=>d.ontoggle=()=>{opn[d.dataset.k]=d.open});
+ bindC();
+ if(need&&!filling){filling=true;fillRegions().then(()=>{filling=false;if(tab==5&&!$(".ov"))render()})}}
 function m2csv(){$("#main").insertAdjacentHTML("beforeend",`<h3>Datensicherung</h3><button class="btn g" id="csv" type="button">Touren als CSV (Excel)</button>`);
  $("#csv").onclick=()=>{const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;const H=["Datum","Name","Gipfel","Höhe m","Aufstieg Hm","km","Std","Tourart","Unterkategorie","Schwierigkeit","Bundesland","Land","Person","Dabei"];
-  const R=items.filter(t=>!t.wish).map(t=>[t.datum,t.name,t.gipfel,t.hoehe,t.hm,t.km,t.dauer,t.art,t.unter,t.schw,t.bl,t.land,t.user,(t.mit||[]).map(uname).join(", ")].map(q).join(";"));
+  const R=items.filter(t=>!t.wish).map(t=>[t.datum,t.name,(t.peaks&&t.peaks.length?t.peaks.map(p=>p.n).join(" + "):t.gipfel),t.hoehe,t.hm,t.km,t.dauer,t.art,t.unter,t.schw,t.bl,t.land,t.user,(t.mit||[]).map(uname).join(", ")].map(q).join(";"));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+[H.map(q).join(";")].concat(R).join("\n")],{type:"text/csv"}));a.download="berggams-touren.csv";a.click()}}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 window.addEventListener("online",()=>{if(me&&!$(".ov"))render()});window.addEventListener("offline",()=>{if(me&&!$(".ov"))render()});
+const pkOf=t=>t.peaks&&t.peaks.length?t.peaks:((t.gipfel||t.name)?[{n:t.gipfel||t.name,h:+t.hoehe||0,la:t.lat,lo:t.lon,bl:t.bl||"",land:t.land||""}]:[]);
+const ptsOf=t=>{const a=pkOf(t).filter(p=>p.la!=null&&p.la!==""&&isFinite(+p.la));return a.length?a:(t.lat!=null&&t.lat!==""?[{n:t.gipfel||t.name,la:t.lat,lo:t.lon}]:[])};
 const IC={cam:'<svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/></svg>',pin:'<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>'};
 const strip=t=>{const {id,...r}=t;return r};
 function shrink(f){return new Promise(ok=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.65))};im.onerror=()=>ok(null);im.src=r.result};r.readAsDataURL(f)})}
@@ -268,7 +342,7 @@ function show(list,start){
 async function form(t,asWish){
  const n=!t;t=t?{...t}:{name:"",datum:asWish?"":today(),art:"Wandern",unter:"Bergwanderung",schw:GR("Wandern")[1],wish:!!asWish};if(!ART[t.art])t.art="Wandern";if(!ART[t.art].u.includes(t.unter))t.unter=ART[t.art].u[0];
  const own=n||t.uid==me.uid,w=!!t.wish,id=t.id||(Date.now()+"-"+me.uid.slice(0,5)),mit=new Set(t.mit||[]);
- let ph=[],add=[],rem=[],fm=null,mk=null;
+ let ph=[],add=[],rem=[],fm=null,mk=null,pks=(t.peaks||[]).map(p=>({...p}));if(!pks.length&&t.gipfel)pks=[{n:t.gipfel,h:+t.hoehe||0,la:t.lat,lo:t.lon,bl:t.bl||"",land:t.land||""}];
  if(!n){try{const s=await getDocs(query(collection(db,"photos"),where("tour","==",id)));ph=s.docs.map(d=>({id:d.id,data:d.data().data}))}catch(e){}}
  const all=()=>ph.filter(p=>!rem.includes(p.id)).map(p=>({k:"p",v:p.id,data:p.data})).concat(add.map((d,i)=>({k:"a",v:i,data:d})));
  const o=document.createElement("div");o.className="ov";document.body.append(o);
@@ -283,13 +357,15 @@ async function form(t,asWish){
   <div class="row"><div><label>Tourart</label><select id="ta" ${dis}>${Object.keys(ART).map(a=>`<option${a==t.art?" selected":""}>${a}</option>`).join("")}</select></div><div><label>Unterkategorie</label><select id="tu" ${dis}>${ART[t.art].u.map(a=>`<option${a==t.unter?" selected":""}>${a}</option>`).join("")}</select></div></div>
   <div class="row">${w?"":`<div><label>Dauer (Std.)</label><input id="g" type="number" step="0.25" ${dis} value="${esc(t.dauer)}"></div>`}<div><label>Schwierigkeit</label><select id="h" ${dis}>${[""].concat(GR(t.art,t.unter)).map(x=>`<option value="${esc(x)}"${x==t.schw?" selected":""}>${x||"–"}</option>`).join("")}</select></div></div>
   ${w?"":own?`<label>Wer war dabei?</label>${others.length?`<div class="chips w" id="mt">${others.map(u=>`<button type="button" data-u="${u}" class="${mit.has(u)?"on":""}">${esc(uname(u))}</button>`).join("")}</div><p><button class="btn g s" id="fam" type="button">Ganze Familie</button></p>`:`<p class="mu">Noch niemand sonst angemeldet.</p>`}`:(t.mit&&t.mit.length?`<label>Dabei</label><p>${t.mit.map(uname).map(esc).join(", ")}</p>`:"")}
-  ${own?`<label>GPX-Aufzeichnung (optional, Komoot/Garmin/Strava)</label><input type="file" id="gx">`:""}<label>${own?"Ort auf der Karte antippen":"Ort"}</label><div id="fm" class="map" style="height:240px"></div><div id="pk" class="mu">${t.gipfel?"⛰️ "+esc(t.gipfel)+" · ":""}${t.bl||t.land?"📍 "+esc([t.bl,t.land].filter(Boolean).join(", ")):""}</div>${own?`<p><button class="btn g s" id="gps">${IC.pin} Mein Standort</button> <span class="mu" id="gt"></span></p>`:""}
+  ${own?`<label>Berg suchen (Name)</label><div class="row"><div><input id="bs" placeholder="z. B. Traunstein"></div><button class="btn s" id="bb" type="button" style="flex:none">Suchen</button></div><div id="br" class="chips w"></div>`:""}<div class="mu" style="margin-top:8px">Gipfel dieser Tour</div><div class="chips w">${pks.map((p,i)=>`<button type="button" class="on" ${own?`data-rp="${i}"`:"disabled"}>${esc(p.n)}${+p.h?" · "+p.h+" m":""}${own?" ✕":""}</button>`).join("")||'<span class="mu">Noch keiner – oben suchen oder auf die Karte tippen.</span>'}</div>${own?`<label>GPX-Aufzeichnung (optional, Komoot/Garmin/Strava)</label><input type="file" id="gx">`:""}<label>${own?"Ort auf der Karte antippen":"Ort"}</label><div id="fm" class="map" style="height:240px"></div><div id="pk" class="mu">${t.gipfel?"⛰️ "+esc(t.gipfel)+" · ":""}${t.bl||t.land?"📍 "+esc([t.bl,t.land].filter(Boolean).join(", ")):""}</div>${own?`<p><button class="btn g s" id="gps">${IC.pin} Mein Standort</button> <span class="mu" id="gt"></span></p>`:""}
   <label>Notizen</label><textarea id="i" rows="3" ${dis}>${esc(t.notiz)}</textarea>
   <label>Fotos</label><div class="th">${all().map((p,i)=>`<div class="pw"><img src="${p.data}" data-s="${i}">${own?`<button class="rm" type="button" data-k="${p.k}" data-v="${p.v}">✕</button>`:""}</div>`).join("")}</div>${own?`<p class="mu">Foto antippen = groß ansehen. ✕ entfernt es (erst nach „Speichern").</p><input type="file" id="p" accept="image/*" multiple>`:""}
   <div id="er" class="err"></div><div class="row" style="margin-top:12px"><button class="btn g" id="x">${own?"Abbrechen":"Schließen"}</button>${own?`<button class="btn" id="s">Speichern</button>`:""}</div>${own&&!n?`<p><button class="btn d" id="dl">Löschen</button></p>`:""}`;
   fm=L.map(o.querySelector("#fm")).setView(t.lat!=null&&t.lat!==""?[+t.lat,+t.lon]:[47.5,13.5],t.lat!=null&&t.lat!==""?12:7);L.tileLayer(OSM,{attribution:"© OpenStreetMap",maxZoom:17}).addTo(fm);
-  const put=p=>{mk?mk.setLatLng(p):mk=L.marker(p).addTo(fm)};if(t.lat!=null&&t.lat!=="")put([+t.lat,+t.lon]);
+  const put=p=>{mk?mk.setLatLng(p):mk=L.circleMarker(p,{radius:7,color:"#fff",weight:2,fillColor:"#e0622b",fillOpacity:1}).addTo(fm)};if(t.lat!=null&&t.lat!=="")put([+t.lat,+t.lon]);
   if(t.track&&t.track.length>3){const a=[];for(let i=0;i<t.track.length;i+=2)a.push([t.track[i],t.track[i+1]]);const pl=L.polyline(a,{color:"#e0622b",weight:4}).addTo(fm);fm.fitBounds(pl.getBounds(),{padding:[20,20]})}
+  pks.forEach(p=>{if(p.la!=null&&p.la!==""&&isFinite(+p.la))L.marker([+p.la,+p.lo]).addTo(fm).bindTooltip(esc(p.n),{permanent:true,direction:"top",offset:[-15,-12]})});
+  {const q=pks.filter(p=>p.la!=null&&p.la!==""&&isFinite(+p.la)).map(p=>[+p.la,+p.lo]);if(q.length>1&&!(t.track&&t.track.length>3))fm.fitBounds(q,{padding:[40,40],maxZoom:13})}
   o.querySelectorAll("[data-s]").forEach(im=>im.onclick=()=>show(all().map(p=>p.data),+im.dataset.s));
   o.querySelector("#x").onclick=close;
   if(!own)return;
@@ -299,8 +375,21 @@ async function form(t,asWish){
   const look=async()=>{const bx=o.querySelector("#pk");if(!bx)return;bx.innerHTML='<span class="mu">Suche Gipfel…</span>';
    try{const [ps,g]=await Promise.all([peaks(t.lat,t.lon),geo(t.lat,t.lon).catch(()=>({}))]);Object.assign(t,g);
     bx.innerHTML=(t.bl||t.land?`<p class="mu">📍 ${esc([t.bl,t.land].filter(Boolean).join(", "))}</p>`:"")+(ps.length?`<div class="chips w">${ps.map((p,i)=>`<button type="button" data-k="${i}">${esc(p.name)}${p.ele?" · "+p.ele+" m":""}</button>`).join("")}</div>`:'<p class="mu">Kein benannter Gipfel in 1,5 km.</p>');
-    bx.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const p=ps[+b.dataset.k];rd();t.gipfel=p.name;if(p.ele)t.hoehe=p.ele;if(!(t.name||"").trim())t.name=p.name;draw()})}catch(e){bx.innerHTML='<span class="mu">Gipfelsuche nicht möglich (offline?).</span>'}};
+    bx.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const p=ps[+b.dataset.k];addPeak({n:p.name,h:p.ele,la:+(+p.lat).toFixed(5),lo:+(+p.lon).toFixed(5)})})}catch(e){bx.innerHTML='<span class="mu">Gipfelsuche nicht möglich (offline?).</span>'}};
   o.querySelector("#gx").onchange=async e=>{rd();try{const r=await gpx(e.target.files[0]);if(!w&&(!t.datum||n))t.datum=r.datum||t.datum;Object.assign(t,{km:r.km,hm:r.hm,dauer:r.dauer,lat:r.lat,lon:r.lon,track:r.track});if(r.hoehe)t.hoehe=r.hoehe;draw();look()}catch(x){o.querySelector("#er").textContent="GPX: "+x.message}};
+  const recompute=()=>{if(pks.length){const top=pks.reduce((a,b)=>(+b.h||0)>(+a.h||0)?b:a);t.gipfel=top.n;const m=Math.max(...pks.map(x=>+x.h||0));if(m)t.hoehe=m;const f=pks.find(x=>x.la!=null&&x.la!=="");if(f){t.lat=+f.la;t.lon=+f.lo;t.bl=f.bl||t.bl||"";t.land=f.land||t.land||""}}else t.gipfel=""};
+  const addPeak=async p=>{rd();const oldG=t.gipfel;
+   if(!p.bl&&!p.land&&p.la!=null){try{Object.assign(p,await geo(p.la,p.lo))}catch(e){}}
+   const k=String(p.n).trim().toLowerCase(),i=pks.findIndex(x=>String(x.n).trim().toLowerCase()==k||(x.la!=null&&x.la!==""&&p.la!=null&&Math.abs(+x.la-+p.la)<.003&&Math.abs(+x.lo-+p.lo)<.003));
+   if(i>=0)pks[i]={...pks[i],...p,h:p.h||pks[i].h};else pks.push(p);
+   recompute();if(!(t.name||"").trim()||t.name==oldG)t.name=t.gipfel||p.n;draw()};
+  o.querySelectorAll("[data-rp]").forEach(b=>b.onclick=()=>{rd();pks.splice(+b.dataset.rp,1);recompute();draw()});
+  const run=async()=>{const q=o.querySelector("#bs").value.trim();if(!q)return;const br=o.querySelector("#br");br.innerHTML='<span class="mu">Suche…</span>';
+   try{const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&addressdetails=1&accept-language=de&limit=20&viewbox=4,49.5,18,45&q="+encodeURIComponent(q));const j=(await r.json()).filter(x=>x.class=="natural"&&x.type=="peak").slice(0,6);
+    const nm=x=>x.name||x.display_name.split(",")[0];
+    br.innerHTML=j.length?j.map((x,i)=>`<button type="button" data-b="${i}">${esc(nm(x))}${x.extratags&&parseInt(x.extratags.ele)?" · "+parseInt(x.extratags.ele)+" m":""}${x.address&&(x.address.state||x.address.country)?" · "+esc(x.address.state||x.address.country):""}</button>`).join(""):'<span class="mu">Kein Berg gefunden. Andere Schreibweise versuchen oder auf die Karte tippen.</span>';
+    br.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{const x=j[+b.dataset.b];addPeak({n:nm(x),h:(x.extratags&&parseInt(x.extratags.ele))||0,la:+(+x.lat).toFixed(5),lo:+(+x.lon).toFixed(5),bl:(x.address&&(x.address.state||x.address.region))||"",land:(x.address&&x.address.country)||""})})}catch(e){br.innerHTML='<span class="mu">Suche nicht möglich (offline?).</span>'}};
+  o.querySelector("#bb").onclick=run;o.querySelector("#bs").onkeydown=e=>{if(e.key=="Enter"){e.preventDefault();run()}};
   o.querySelectorAll("#mt [data-u]").forEach(b=>b.onclick=()=>{const u=b.dataset.u;mit.has(u)?mit.delete(u):mit.add(u);b.className=mit.has(u)?"on":""});
   const fam=o.querySelector("#fam");if(fam)fam.onclick=()=>{others.forEach(u=>mit.add(u));o.querySelectorAll("#mt [data-u]").forEach(b=>b.className="on")};
   o.querySelector("#ta").onchange=()=>{rd();t.unter=ART[t.art].u[0];t.schw=GR(t.art,t.unter)[1]||GR(t.art,t.unter)[0];draw()};
@@ -308,9 +397,9 @@ async function form(t,asWish){
   o.querySelector("#p").onchange=async e=>{rd();for(const f of e.target.files){const s=await shrink(f);if(s)add.push(s)}draw()};
   o.querySelectorAll(".rm").forEach(b=>b.onclick=()=>{rd();b.dataset.k=="p"?rem.push(b.dataset.v):add.splice(+b.dataset.v,1);draw()});
   o.querySelector("#s").onclick=async()=>{rd();if(!t.name.trim()||(!w&&!t.datum)){o.querySelector("#er").textContent="Bitte Name"+(w?"":" und Datum")+" angeben.";return}
-   try{await setDoc(doc(db,"tours",id),{...strip(t),uid:t.uid||me.uid,user:t.user||me.displayName||me.email,wish:w,mit:w?[]:[...mit]});
+   try{await setDoc(doc(db,"tours",id),{...strip(t),uid:t.uid||me.uid,user:t.user||me.displayName||me.email,wish:w,peaks:pks.map(q=>({n:String(q.n||""),h:+q.h||0,la:q.la!=null&&q.la!==""&&isFinite(+q.la)?+q.la:null,lo:q.lo!=null&&q.lo!==""&&isFinite(+q.lo)?+q.lo:null,bl:q.bl||"",land:q.land||""})),mit:w?[]:[...mit]});
     for(const p of rem)await deleteDoc(doc(db,"photos",p));
-    for(const p of add)await setDoc(doc(db,"photos",id+"_"+Math.random().toString(36).slice(2,8)),{tour:id,uid:me.uid,data:p});close()}catch(e){o.querySelector("#er").textContent=e.message}};
+    for(const p of add)await setDoc(doc(db,"photos",id+"_"+Math.random().toString(36).slice(2,8)),{tour:id,uid:me.uid,data:p});close()}catch(e){o.querySelector("#er").textContent="Speichern fehlgeschlagen: "+(e.code?e.code+" – ":"")+e.message}};
   const dl=o.querySelector("#dl");if(dl)dl.onclick=async()=>{if(!dl.dataset.s){dl.dataset.s=1;dl.textContent="Wirklich löschen? Nochmal tippen";return}for(const p of ph)await deleteDoc(doc(db,"photos",p.id));await deleteDoc(doc(db,"tours",id));close()};
  };
  draw();
